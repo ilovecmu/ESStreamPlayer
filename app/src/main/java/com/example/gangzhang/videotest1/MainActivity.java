@@ -41,8 +41,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * This activity uses a {@link android.view.TextureView} to render the frames of a video decoded using
- * {@link android.media.MediaCodec} API.
+ * This activity uses a {@link TextureView} to render the frames of a video decoded using
+ * {@link MediaCodec} API.
  */
 public class MainActivity extends Activity {
 
@@ -53,7 +53,7 @@ public class MainActivity extends Activity {
     // into an east to use API.
     private MediaCodecWrapper mCodecWrapper;
     private String filepath;
-
+    private Surface mSurface;
     /**
      * Called when the activity is first created.
      */
@@ -62,6 +62,32 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mPlaybackView = (TextureView) findViewById(R.id.PlaybackView);
+        mPlaybackView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+            @Override
+            public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
+
+            }
+
+            @Override
+            public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
+
+            }
+
+            @Override
+            public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+                if (mCodecWrapper != null) {
+                    mCodecWrapper.stopAndRelease();
+                    mCodecWrapper = null;
+                }
+                return false;
+            }
+
+            @Override
+            public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+
+            }
+        });
+       mSurface = new Surface( mPlaybackView.getSurfaceTexture());
 
     }
 
@@ -99,10 +125,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        if (mCodecWrapper != null) {
-            mCodecWrapper.stopAndRelease();
-            mCodecWrapper = null;
-        }
+
         super.onDestroy();
 
     }
@@ -125,7 +148,7 @@ public class MainActivity extends Activity {
                             if(mCodecWrapper!=null)
                                 mCodecWrapper.stopAndRelease();
 
-                            mCodecWrapper = MediaCodecWrapper.CreateCodecWrapper(filepath, new Surface(mPlaybackView.getSurfaceTexture()));
+                            mCodecWrapper = MediaCodecWrapper.CreateCodecWrapper(filepath, mSurface);
                             if(mCodecWrapper != null) {
                                 mCodecWrapper.Start();
                             }

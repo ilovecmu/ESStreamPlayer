@@ -85,11 +85,9 @@ public class MediaCodecWrapper {
     private OutputSampleListener mOutputSampleListener;
 
     private static FileInputStream inputStream;
-    private static boolean has_find_frame_head ;
     private static boolean firstTime =true;
     private static File file;
     public  static boolean isEos;
-    private static boolean isPlaying;
     private static int frameCnt;
     private static BufferedInputStream br;
 
@@ -99,7 +97,6 @@ public class MediaCodecWrapper {
 
     private  static int initFileIO(String path){
         file = new File(path);
-        has_find_frame_head = false;
         try {
             inputStream = new FileInputStream(file);
         }catch (Exception e){
@@ -133,14 +130,14 @@ public class MediaCodecWrapper {
             mDecoder.release();
             mDecoder = null;
         }
+        mTimeAnimator.end();
         mHandler = null;
-        isPlaying = false;
     }
 
     /**
      * Getter for the registered {@link OutputFormatChangedListener}
      */
-    public OutputFormatChangedListener getOutputFormatChangedListener() {
+    private OutputFormatChangedListener getOutputFormatChangedListener() {
         return mOutputFormatChangedListener;
     }
 
@@ -149,7 +146,7 @@ public class MediaCodecWrapper {
      * @param outputFormatChangedListener the listener for callback.
      * @param handler message handler for posting the callback.
      */
-    public void setOutputFormatChangedListener(final OutputFormatChangedListener
+    private void setOutputFormatChangedListener(final OutputFormatChangedListener
                                                        outputFormatChangedListener, Handler handler) {
         mOutputFormatChangedListener = outputFormatChangedListener;
 
@@ -192,7 +189,6 @@ public class MediaCodecWrapper {
         if (videoCodec != null) {
             result = new MediaCodecWrapper(videoCodec);
         }
-        isPlaying = false;
         return result;
     }
 
@@ -215,81 +211,6 @@ public class MediaCodecWrapper {
             result = true;
         }
         return result;
-
-    }
-
-
-
-    private int nextFrame2(ByteBuffer buffer){
-        int size = 0;
-        byte[] b_array= new byte[1];
-        int stage = 0;
-        try {
-            if(!has_find_frame_head) {
-                while (true) {
-                    if(br.read(b_array)==-1){
-                        isEos=true;
-                        return 0;
-                    }
-                    if (stage == 0 ) {
-                        if(b_array[0] == 0) {
-                            stage = 1;
-
-                        }else{
-                            stage=0;
-
-                        }
-                    } else if (stage == 1) {
-                        if (b_array[0] == 0) {
-                            stage = 2;
-
-                        } else {
-                            stage = 0;
-
-                        }
-                    } else if (stage == 2) {
-                        if (b_array[0] == 1) {
-                            break;
-                        } else if (b_array[0] == 0) {
-                            stage = 2;
-                        } else {
-                            stage = 0;
-                        }
-                    }
-                }
-            }
-            size = 3;
-            byte b = 0;
-            buffer.put(b);
-            b=0;
-            buffer.put(b);
-            b=1;
-            buffer.put(b);
-            has_find_frame_head = false;
-            //has find start flag 001 or 0001 or 0000001
-            while(true){
-                if(br.read(b_array)==-1){
-                    has_find_frame_head = true;
-                    size -= 2;
-                    isEos=true;
-                    break;
-                };
-                buffer.put(b_array[0]);
-                if(size >=2 && buffer.get(size)==1 && buffer.get(size - 1)==0 && buffer.get(size-2)==0) {
-                    has_find_frame_head = true;
-                    size -= 2;
-                    break;
-                }else {
-                    size++;
-                }
-            }
-        }catch (Exception e){
-            e.printStackTrace();
-            return 0;
-        }
-        if(size<=0)
-            isEos=true;
-        return size;
 
     }
 
@@ -377,7 +298,7 @@ public class MediaCodecWrapper {
      *
      * @return True, if the peek was successful.
      */
-    public boolean peekSample(MediaCodec.BufferInfo out_bufferInfo) {
+    private boolean peekSample(MediaCodec.BufferInfo out_bufferInfo) {
         // dequeue available buffers and synchronize our data structures with the codec.
         update();
         boolean result = false;
@@ -398,13 +319,13 @@ public class MediaCodecWrapper {
     /**
      * Processes, releases and optionally renders the output buffer available at the head of the
      * queue. All observers are notified with a callback. See {@link
-     * OutputSampleListener#outputSample(MediaCodecWrapper, android.media.MediaCodec.BufferInfo,
-     * java.nio.ByteBuffer)}
+     * OutputSampleListener#outputSample(MediaCodecWrapper, MediaCodec.BufferInfo,
+     * ByteBuffer)}
      *
      * @param render True, if the buffer is to be rendered on the {@link Surface} configured
      *
      */
-    public void popSample(boolean render) {
+    private void popSample(boolean render) {
         // dequeue available buffers and synchronize our data structures with the codec.
         update();
         if (!mAvailableOutputBuffers.isEmpty()) {
@@ -417,17 +338,8 @@ public class MediaCodecWrapper {
             }
             ByteBuffer buffer = mOutputBuffers[index];
             MediaCodec.BufferInfo info = mOutputBufferInfo[index];
-//            Log.d("myapp","info.offset="+info.offset);
-//            Log.d("myapp","info.size="+info.size);
-//            Log.d("myapp","info.presentationTimeUs="+info.presentationTimeUs);
-//            Log.d("myapp","info.flags="+info.flags);
-//            if(info.flags==1) {
-//                for (int i = 0; i < 8; i++) {
-//                    Log.d("myapp", "b=" + buffer.get(i));
-//                }
-//            }
 
-            // releases the buffer back to the codec
+
             mDecoder.releaseOutputBuffer(index, render);
         }
     }
@@ -500,7 +412,7 @@ public class MediaCodecWrapper {
                     public void onTimeUpdate(final TimeAnimator animation,
                                              final long totalTime,
                                              final long deltaTime) {
-                        if(isPlaying) {
+                        if(true) {
 
                             if (!isEos) {
                                 // Try to submit the sample to the codec and if successful advance the
@@ -532,7 +444,6 @@ public class MediaCodecWrapper {
 
             // We're all set. Kick off the animator to process buffers and render video frames as
             // they become available
-            isPlaying = true;
             mTimeAnimator.start();
         } catch (Exception e) {
             e.printStackTrace();
